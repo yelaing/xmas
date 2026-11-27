@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#000000" />
+<meta name="format-detection" content="telephone=no,email=no,address=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Merry Christmas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8E%84%3C/text%3E%3C/svg%3E" />
+<meta name="description" content="一棵会旋转的 3D 粒子圣诞树，送给正在看这条消息的你。" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Merry Christmas" />
+<meta property="og:description" content="一棵会旋转的 3D 粒子圣诞树，送给正在看这条消息的你。" />
+<meta property="og:url" content="https://yelaing.github.io/xmas/" />
+<meta property="og:image" content="https://yelaing.github.io/xmas/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="https://yelaing.github.io/xmas/" />
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;background:#000;overflow:hidden}
+  body{
+    -webkit-tap-highlight-color:transparent;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    cursor:default;
+  }
+  #stage{
+    position:fixed;inset:0;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    background:#000;
+  }
+  #wrap{position:relative;z-index:2;flex:0 0 auto}
+  #scene,#bloom,#snow{
+    position:absolute;left:0;top:0;
+    width:100%;height:100%;display:block;
+  }
+  #scene{z-index:0;filter:blur(.3px) saturate(1.05)}
+  /* 泛光层：低分辨率放大 + 屏幕混合，粒子的“灯光感” */
+  #bloom{
+    z-index:1;pointer-events:none;
+    mix-blend-mode:screen;
+    filter:blur(2px);
+    opacity:.70;
+  }
+  #snow{z-index:2;pointer-events:none}
+  /* 暗角 */
+  #vig{
+    position:absolute;inset:0;z-index:3;pointer-events:none;
+    background:radial-gradient(ellipse 74% 70% at 50% 46%,
+      rgba(0,0,0,0) 32%, rgba(0,0,0,.30) 70%, rgba(0,0,0,.76) 100%);
+  }
+
+  #hud{
+    position:absolute;z-index:6;pointer-events:none;color:#fff;
+    left:2.6%;top:31%;
+    max-width:60%;
+  }
+  #ttl{
+    font-family:"Snell Roundhand","Apple Chancery","Segoe Script","Lucida Handwriting","Brush Script MT",Georgia,"Times New Roman",serif;
+    font-weight:400;
+    font-size:max(17px, calc(var(--u, 1px) * 48));
+    line-height:1.1;
+    letter-spacing:.01em;
+    white-space:nowrap;
+    color:#fff;
+    animation:glow 6.5s ease-in-out infinite, fadein .9s ease-out .1s forwards;
+    will-change:opacity,text-shadow;
+  }
+  #sub{
+    margin-top:.55em;
+    font-size:max(11px, calc(var(--u, 1px) * 21));
+    letter-spacing:.14em;
+    color:rgba(226,240,255,.72);
+    line-height:1.7;
+    animation:fadein 1.3s ease-out .25s forwards;
+  }
+  #sign{
+    margin-top:1.6em;
+    font-size:max(9px, calc(var(--u, 1px) * 15));
+    letter-spacing:.2em;
+    color:rgba(200,222,255,.42);
+    animation:fadein 1.6s ease-out .55s forwards;
+  }
+  @keyframes glow{
+    0%,100%{text-shadow:0 0 14px rgba(186,224,255,.38),0 0 52px rgba(120,180,255,.20)}
+    50%{text-shadow:0 0 22px rgba(214,240,255,.72),0 0 86px rgba(140,200,255,.38)}
+  }
+  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* 音乐按钮 */
+  #mute{
+    position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));
+    z-index:9;width:42px;height:42px;border-radius:50%;
+    border:1px solid rgba(170,205,255,.28);
+    background:rgba(120,170,255,.07);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    color:rgba(210,232,255,.82);font-size:17px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    transition:opacity .3s,border-color .3s,background .3s,transform .2s;
+    cursor:pointer;font-family:inherit;
+    opacity:.72;
+  }
+  #mute:hover{border-color:rgba(190,225,255,.55);background:rgba(140,190,255,.14);opacity:1}
+  #mute:active{transform:scale(.92)}
+  #mute.on{color:#eaf4ff;border-color:rgba(200,232,255,.6);box-shadow:0 0 18px rgba(140,200,255,.35);opacity:.95}
+
+  /* 竖屏：画面放大裁切，文字落到屏幕下方居中 */
+  @media (orientation: portrait){
+    #stage{align-items:flex-start;justify-content:center;padding-top:4.5vh}
+    #hud{
+      position:fixed;left:0;right:0;top:auto;
+      bottom:calc(10vh + env(safe-area-inset-bottom));
+      max-width:none;text-align:center;padding:0 16px;
+    }
+    #ttl{font-size:clamp(16px, 4.6vw, 28px);white-space:normal;letter-spacing:0}
+    #sub{font-size:clamp(11px, 3.2vw, 15px);letter-spacing:.1em}
+    #sign{font-size:clamp(9px, 2.6vw, 12px);margin-top:1em;letter-spacing:.18em}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #ttl,#sub,#sign{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="scene"></canvas>
+    <canvas id="bloom"></canvas>
+    <canvas id="snow"></canvas>
+    <div id="vig"></div>
+    <div id="hud">
+      <h1 id="ttl">Merry Christmas</h1>
+      <p id="sub">愿为你亮着的灯，一颗都不落</p>
+      <p id="sign">2025 · 圣诞快乐</p>
+    </div>
+  </div>
+</div>
+
+<button id="mute" title="音乐开关" aria-label="音乐开关">♪</button>
+
+<noscript><p style="color:#fff;position:fixed;inset:0;display:grid;place-items:center">请开启 JavaScript 观看动画</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     ① 可自定义区（改这里就行）
+     ========================================================= */
+  var CONFIG = {
+    title:    'Merry Christmas',
+    subtitle: '愿为你亮着的灯，一颗都不落',
+    signer:   '2025 · 圣诞快乐'
+  };
+
+  /* =========================================================
+     ② 场景常量 —— 与原始 tree.py 完全一致
+     ========================================================= */
+  var W = 1600, H = 900;
+  var TREE_HEIGHT = 12.0;
+  var CAM_DIST = 13.0, CAM_HEIGHT = 6.0, PITCH = -0.25;
+  var COS_P = Math.cos(PITCH), SIN_P = Math.sin(PITCH);
+  var TAU = Math.PI * 2;
+
+  var N_TREE = 50000, N_GROUND = 4000, N_STAR = 1200, N_HEART = 1000, N_SNOW2D = 10;
+
+  var isTouch = ('ontouchstart' in window) ||
+                /Android|iPhone|iPad|iPod|Mobile|HarmonyOS/i.test(navigator.userAgent);
+  // 移动端降采样，保持构图不变、帧率稳定
+  var Q = isTouch ? 0.56 : 1;
+
+  /* =========================================================
+     ③ 工具
+     ========================================================= */
+  function rnd() { return Math.random(); }
+  function uniform(a, b) { return a + (b - a) * Math.random(); }
+  function randint(a, b) { return a + ((Math.random() * (b - a + 1)) | 0); }
+  var _gaussSpare = null;
+  function gauss(mu, sigma) {
+    if (_gaussSpare !== null) { var s = _gaussSpare; _gaussSpare = null; return mu + sigma * s; }
+    var u1 = 1 - Math.random(), u2 = Math.random();
+    var r = Math.sqrt(-2 * Math.log(u1));
+    var z0 = r * Math.cos(TAU * u2), z1 = r * Math.sin(TAU * u2);
+    _gaussSpare = z1;
+    return mu + sigma * z0;
+  }
+  // ImageData 小端：0xAABBGGRR
+  function pack(r, g, b) {
+    return (((255 << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255)) >>> 0);
+  }
+
+  /* =========================================================
+     ④ 生成粒子（逐行对齐 tree.py）
+     ========================================================= */
+  var nTree   = Math.max(6000, Math.round(N_TREE * Q));
+  var nGround = Math.max(1200, Math.round(N_GROUND * Math.min(1, Q + 0.35)));
+  var nStar   = Math.max(600,  Math.round(N_STAR   * Math.min(1, Q + 0.35)));
+  var nHeart  = Math.max(500,  Math.round(N_HEART  * Math.min(1, Q + 0.35)));
+  var TOTAL = nTree + nGround + nStar + nHeart;
+
+  var PX = new Float32Array(TOTAL);
+  var PY = new Float32Array(TOTAL);
+  var PZ = new Float32Array(TOTAL);
+  var PC = new Uint32Array(TOTAL);
+
+  var _o = 0;
+
+  // —— 圣诞树：70% 螺旋灯带 + 30% 蓬松填充
+  (function buildTree() {
+    var loops = 9;
+    var spiral_n = Math.floor(nTree * 0.7);
+    var i, idx = _o;
+
+    for (i = 0; i < spiral_n; i++, idx++) {
+      var u = rnd();
+      var h = Math.pow(u, 1.6);
+      var y = TREE_HEIGHT * h + 0.2;
+
+      var base_r = Math.pow(1 - h, 1.1) * 3.2;
+      var bw = Math.sin((h * 5.8 + 0.15) * TAU);
+      if (bw < 0) bw = 0;
+      base_r *= 1.0 + 0.65 * bw;
+
+      var t = u * loops * TAU;
+      var ang = t + uniform(-0.22, 0.22);
+      var r = base_r * uniform(0.85, 1.08);
+
+      PX[idx] = Math.cos(ang) * r;
+      PY[idx] = y;
+      PZ[idx] = Math.sin(ang) * r;
+
+      var mb = 1.0 - Math.abs(h - 0.55) * 1.5;
+      if (mb < 0.15) mb = 0.15;
+      var g = 155 + ((90 * mb) | 0);
+      var b = 185 + ((70 * mb) | 0);
+      g = Math.min(255, g + randint(-15, 20));
+      b = Math.min(255, b + randint(-15, 35));
+
+      var cr = 255, cg = g, cb = b;
+      if (rnd() < 0.08) {                     // 点缀更亮的小灯
+        cg = 255 - randint(0, 35);
+        cb = Math.min(255, 230 + randint(0, 25));
+      }
+      PC[idx] = pack(cr, cg, cb);
+    }
+
+    for (; idx < _o + nTree; idx++) {
+      var h2 = Math.pow(rnd(), 1.9);
+      var y2 = TREE_HEIGHT * h2 + 0.2 + uniform(-0.08, 0.08);
+
+      var br = Math.pow(1 - h2, 1.1) * 4.3;
+      var bw2 = Math.sin((h2 * 5.8 + 0.15) * TAU);
+      if (bw2 < 0) bw2 = 0;
+      br *= 1.0 + 0.65 * bw2;
+
+      var r2 = br * Math.sqrt(rnd());
+      var ang2 = rnd() * TAU;
+
+      PX[idx] = Math.cos(ang2) * r2 + uniform(-0.08, 0.08);
+      PY[idx] = y2;
+      PZ[idx] = Math.sin(ang2) * r2 + uniform(-0.08, 0.08);
+
+      PC[idx] = pack(255, randint(165, 225), randint(190, 250));
+    }
+    _o += nTree;
+  })();
+
+  // —— 地面光环（法阵盘子）
+  (function buildGround() {
+    var rings = [4.6, 6.0, 7.4, 8.8, 10.2, 11.4];
+    for (var i = 0; i < nGround; i++, _o++) {
+      var ring = rings[(rnd() * rings.length) | 0];
+      var r = gauss(ring, 0.3);
+      var th = rnd() * TAU;
+      PX[_o] = Math.cos(th) * r;
+      PY[_o] = -0.25;
+      PZ[_o] = Math.sin(th) * r;
+      var c = rnd() < 0.15 ? randint(235, 255) : randint(190, 235);
+      PC[_o] = pack(c, c, 255);
+    }
+  })();
+
+  // —— 空中 3D 小亮点
+  (function buildStars() {
+    for (var i = 0; i < nStar; i++, _o++) {
+      PX[_o] = uniform(-18.0, 18.0);
+      PZ[_o] = uniform(-18.0, 18.0);
+      PY[_o] = uniform(3.0, 18.0);
+      var base = randint(215, 255);
+      PC[_o] = pack(base, base, 255);
+    }
+  })();
+
+  // —— 树顶 3D 爱心：(x²+y²−1)³ − x²y³ ≤ 0
+  (function buildHeart() {
+    var scale = 0.9, top_y = TREE_HEIGHT + 0.05;
+    var i = 0, idx = _o;
+    while (i < nHeart) {
+      var x = uniform(-1.3, 1.3);
+      var y = uniform(-1.4, 1.4);
+      var f = Math.pow(x * x + y * y - 1.0, 3) - x * x * (y * y * y);
+      if (f <= 0.0) {
+        PX[idx] = x * scale * 0.8;
+        PY[idx] = top_y + (y + 1.0) * scale * 0.5;
+        PZ[idx] = uniform(-0.18, 0.18);
+
+        var dist = Math.sqrt(x * x + y * y);
+        var factor = 1.15 - 0.5 * dist;
+        if (factor < 0.35) factor = 0.35;
+        var g = Math.floor(130 * factor + 80);
+        var b = Math.floor(190 * factor + 70);
+        g = Math.max(120, Math.min(255, g));
+        b = Math.max(120, Math.min(255, b));
+        PC[idx] = pack(255, g, b);
+        idx++; i++;
+      }
+    }
+    _o += nHeart;
+  })();
+
+  /* =========================================================
+     ⑤ 画布与渲染缓冲
+     ========================================================= */
+  var scene = document.getElementById('scene');
+  var snowC = document.getElementById('snow');
+  var bloom = document.getElementById('bloom');
+  scene.width = W; scene.height = H;
+  snowC.width = W; snowC.height = H;
+
+  var sctx = scene.getContext('2d', { alpha: false });
+  var wctx = snowC.getContext('2d');
+
+  // 泛光层：低分辨率放大 = 廉价 bloom
+  var BW = isTouch ? 320 : 400, BH = Math.round(BW * 9 / 16);
+  bloom.width = BW; bloom.height = BH;
+  var bctx = bloom.getContext('2d', { alpha: false });
+  var bloomEvery = isTouch ? 3 : 2;
+  var bloomTick = 0;
+
+  var imgData = sctx.createImageData(W, H);
+  var buf = new Uint32Array(imgData.data.buffer);
+  buf.fill(0xFF000000);
+  sctx.putImageData(imgData, 0, 0);
+
+  // 投影结果缓存
+  var SX = new Float32Array(TOTAL);
+  var SY = new Float32Array(TOTAL);
+  var DZ = new Float32Array(TOTAL);
+  var CC = new Uint32Array(TOTAL);
+  var BID = new Uint8Array(TOTAL);
+
+  // 计数排序桶（远 → 近）
+  var NB = 256;
+  var Z_LO = 0.1, Z_HI = 36.0;
+  var Z_SCALE = NB / (Z_HI - Z_LO);
+  var bucketCount = new Int32Array(NB);
+  var bucketStart = new Int32Array(NB);
+  var cursor = new Int32Array(NB);
+  var order = new Int32Array(TOTAL);
+
+  // 圆点精灵偏移表（半径 1..4，近似 pygame.draw.circle）
+  var SPR = [];
+  (function buildSprites() {
+    for (var r = 0; r <= 4; r++) {
+      if (r === 0) { SPR[r] = new Int8Array(2); SPR[r][0] = 0; SPR[r][1] = 0; continue; }
+      var list = [];
+      var lim = (r + 0.4) * (r + 0.4);
+      for (var dy = -r; dy <= r; dy++) {
+        for (var dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy <= lim) { list.push(dx, dy); }
+        }
+      }
+      SPR[r] = new Int8Array(list);
+    }
+  })();
+
+  /* =========================================================
+     ⑥ 前景 2D 大雪花
+     ========================================================= */
+  var flakes = [];
+  function spawnFlake(f) {
+    var x = uniform(0, W);
+    var y = uniform(-80, -10);
+    var radius = uniform(10.0, 16.0);
+    var speed = uniform(30.0, 45.0);
+    var life = (H + 80 - y) / speed;
+    f.x = x; f.y = y; f.r = radius; f.v = speed; f.life = life; f.maxLife = life;
+  }
+  for (var fi = 0; fi < N_SNOW2D; fi++) { var f0 = {}; spawnFlake(f0); flakes.push(f0); }
+
+  var flakeSprite = (function () {
+    var S = 64, c = document.createElement('canvas');
+    c.width = c.height = S;
+    var k = c.getContext('2d');
+    var g = k.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    g.addColorStop(0.00, 'rgba(255,255,255,1)');
+    g.addColorStop(0.28, 'rgba(255,255,255,0.38)');
+    g.addColorStop(0.46, 'rgba(255,255,255,0.13)');
+    g.addColorStop(0.68, 'rgba(255,255,255,0.035)');
+    g.addColorStop(1.00, 'rgba(255,255,255,0)');
+    k.fillStyle = g;
+    k.fillRect(0, 0, S, S);
+    return c;
+  })();
+
+  /* =========================================================
+     ⑦ 布局
+     ========================================================= */
+  var wrap = document.getElementById('wrap');
+  function layout() {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var portrait = vh >= vw;
+    var w, h;
+    if (portrait) {
+      // 竖屏：按高度放大画面，宽度溢出由 #stage 裁切 —— 树更大更震撼
+      h = Math.round(vh * 0.64);
+      w = Math.round(h * 16 / 9);
+      if (w < vw) { w = vw; h = Math.round(w * 9 / 16); }
+    } else {
+      w = vw; h = Math.round(w * 9 / 16);
+      if (h > vh) { h = vh; w = Math.round(h * 16 / 9); }
+    }
+    wrap.style.width = w + 'px';
+    wrap.style.height = h + 'px';
+    document.documentElement.style.setProperty('--u', (w / 1600) + 'px');
+  }
+  window.addEventListener('resize', layout, { passive: true });
+  window.addEventListener('orientationchange', function () { setTimeout(layout, 120); }, { passive: true });
+  layout();
+
+  /* =========================================================
+     ⑧ 主循环
+     ========================================================= */
+  var angle = 0.0;
+  var spinBoost = 0;
+  var last = 0;
+  var running = true;
+
+  var TEXTSET = false;
+  function applyConfig() {
+    if (TEXTSET) return; TEXTSET = true;
+    document.getElementById('ttl').textContent = CONFIG.title;
+    document.getElementById('sub').textContent = CONFIG.subtitle;
+    document.getElementById('sign').textContent = CONFIG.signer;
+    document.title = CONFIG.title;
+  }
+  applyConfig();
+
+  function draw(now) {
+    if (!running) return;
+    if (!last) last = now;
+    var dt = (now - last) / 1000;
+    if (dt > 0.1) dt = 0.1;          // 掉帧保护
+    last = now;
+
+    // 旋转：原版 0.0045 rad / 帧 @60fps ≈ 0.27 rad/s
+    spinBoost *= 0.955;
+    angle += (0.27 + spinBoost * 2.2) * dt;
+
+    var ca = Math.cos(angle), sa = Math.sin(angle);
+
+    /* ---- 投影 + 分桶 ---- */
+    bucketCount.fill(0);
+    var cnt = 0;
+    var halfW = W * 0.5, halfH = H * 0.5, FOCAL = H * 0.63;
+    var minX = -8, maxX = W + 8, minY = -8, maxY = H + 8;
+
+    for (var i = 0; i < TOTAL; i++) {
+      var x = PX[i], y = PY[i], z = PZ[i];
+      var xz = x * ca - z * sa;
+      var zz = x * sa + z * ca;
+
+      var zp = y * SIN_P + zz * COS_P + CAM_DIST;
+      if (zp <= 0.1) continue;
+
+      var yp = y * COS_P - zz * SIN_P - CAM_HEIGHT;
+      var f = FOCAL / zp;
+      var sx = halfW + xz * f;
+      var sy = halfH - yp * f;
+
+      if (sx < minX || sx > maxX || sy < minY || sy > maxY) continue;
+
+      var bi = ((zp - Z_LO) * Z_SCALE) | 0;
+      if (bi < 0) bi = 0; else if (bi >= NB) bi = NB - 1;
+
+      SX[cnt] = sx; SY[cnt] = sy; DZ[cnt] = zp; CC[cnt] = PC[i];
+      BID[cnt] = bi;
+      bucketCount[bi]++;
+      cnt++;
+    }
+
+    /* ---- 计数排序（按深度升序重排，绘制时倒序 = 远先画）---- */
+    var acc = 0;
+    for (var b = 0; b < NB; b++) { bucketStart[b] = acc; cursor[b] = acc; acc += bucketCount[b]; }
+    for (var k = 0; k < cnt; k++) { order[cursor[BID[k]]++] = k; }
+
+    /* ---- 写像素 ---- */
+    buf.fill(0xFF000000);
+    for (var m = cnt - 1; m >= 0; m--) {
+      var j = order[m];
+      var px = SX[j] | 0, py = SY[j] | 0;
+      var s = (3.6 - DZ[j] * 0.13) | 0;
+      if (s < 1) s = 1; else if (s > 4) s = 4;
+      var offs = SPR[s];
+      var col = CC[j];
+      var len = offs.length;
+      for (var p = 0; p < len; p += 2) {
+        var xx = px + offs[p], yy = py + offs[p + 1];
+        if (xx >= 0 && xx < W && yy >= 0 && yy < H) buf[yy * W + xx] = col;
+      }
+    }
+    sctx.putImageData(imgData, 0, 0);
+
+    // 泛光（隔帧更新，省算力）
+    if (++bloomTick % bloomEvery === 0) {
+      bctx.drawImage(scene, 0, 0, BW, BH);
+    }
+
+    /* ---- 前景大雪花 ---- */
+    wctx.clearRect(0, 0, W, H);
+    for (var n = 0; n < flakes.length; n++) {
+      var fl = flakes[n];
+      fl.y += fl.v * dt;
+      fl.life -= dt;
+      if (fl.life <= 0 || fl.y > H + 50) { spawnFlake(fl); continue; }
+
+      var phase = fl.life / fl.maxLife;
+      var alpha = phase > 0.3 ? 1 : phase / 0.3;
+      if (alpha <= 0) continue;
+      var d = fl.r * 2.3;
+      wctx.globalAlpha = alpha * 0.9;
+      wctx.drawImage(flakeSprite, fl.x - d, fl.y - d, d * 2, d * 2);
+    }
+    wctx.globalAlpha = 1;
+
+    requestAnimationFrame(draw);
+  }
+
+  /* =========================================================
+     ⑨ 交互
+     ========================================================= */
+  var stage = document.getElementById('stage');
+  stage.addEventListener('pointerdown', function () {
+    spinBoost = Math.min(1.6, spinBoost + 0.95);
+  }, { passive: true });
+
+  stage.addEventListener('dblclick', function () {
+    var el = document.documentElement;
+    if (document.fullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document);
+    } else {
+      (el.requestFullscreen || el.webkitRequestFullscreen || function(){}).call(el);
+    }
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { running = false; last = 0; }
+    else if (!running) { running = true; last = 0; requestAnimationFrame(draw); }
+  });
+
+  /* =========================================================
+     ⑩ 音乐（WebAudio 合成《Jingle Bells》，零外部资源）
+     ========================================================= */
+  var NOTES = { C: 523.25, D: 587.33, E: 659.25, F: 698.46, G: 783.99, A: 880.00, B: 987.77 };
+  var MELODY = [
+    ['E',1],['E',1],['E',2],
+    ['E',1],['E',1],['E',2],
+    ['E',1],['G',1],['C',1.5],['D',0.5],['E',3],
+    ['F',1],['F',1],['F',1.5],['F',0.5],
+    ['F',1],['E',1],['E',1],['E',0.5],['E',0.5],
+    ['E',1],['D',1],['D',1],['E',1],
+    ['D',2],['G',2],
+    ['E',1],['E',1],['E',2],
+    ['E',1],['E',1],['E',2],
+    ['E',1],['G',1],['C',1.5],['D',0.5],['E',3],
+    ['F',1],['F',1],['F',1.5],['F',0.5],
+    ['F',1],['E',1],['E',1],['E',0.5],['E',0.5],
+    ['G',1],['G',1],['F',1],['D',1],
+    ['C',4]
+  ];
+  var BEAT = 0.42;
+
+  var actx = null, master = null, musicOn = false, musicTimer = null, btn = document.getElementById('mute');
+
+  function note(at, freq, t0, dur, gain, type) {
+    var osc = at.createOscillator();
+    var g = at.createGain();
+    osc.type = type || 'triangle';
+    osc.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0006, t0 + dur * 0.92);
+    osc.connect(g); g.connect(master);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
+  }
+
+  function scheduleSong(at, t0) {
+    var t = t0;
+    for (var i = 0; i < MELODY.length; i++) {
+      var nm = MELODY[i][0], beats = MELODY[i][1];
+      var dur = beats * BEAT;
+      var fr = NOTES[nm];
+      note(at, fr, t, dur * 0.96, 0.14, 'triangle');
+      note(at, fr * 2, t, Math.min(dur * 0.5, 0.5), 0.035, 'sine');
+      t += dur;
+    }
+    return t;
+  }
+
+  function loopMusic() {
+    if (!musicOn || !actx) return;
+    var end = scheduleSong(actx, actx.currentTime + 0.12);
+    var waitMs = Math.max(500, (end - actx.currentTime) * 1000 + 260);
+    musicTimer = setTimeout(loopMusic, waitMs);
+  }
+
+  function startMusic() {
+    try {
+      if (!actx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        actx = new AC();
+        master = actx.createGain();
+        master.gain.value = 0.85;
+        var lp = actx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 5200;
+        master.connect(lp); lp.connect(actx.destination);
+      }
+      if (actx.state === 'suspended') actx.resume();
+      musicOn = true;
+      btn.classList.add('on');
+      btn.textContent = '♫';
+      loopMusic();
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function stopMusic() {
+    musicOn = false;
+    if (musicTimer) { clearTimeout(musicTimer); musicTimer = null; }
+    if (actx && actx.state === 'running') { try { actx.suspend(); } catch (e) {} }
+    btn.classList.remove('on');
+    btn.textContent = '♪';
+  }
+
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (musicOn) stopMusic(); else startMusic();
+  });
+
+  /* =========================================================
+     ⑪ 启动
+     ========================================================= */
+  requestAnimationFrame(function (t) { last = t; draw(t); });
+
+  // 微信/浏览器要求手势后才能出声，这里首次点击画面不自动播，避免打扰
+  // 想自动播放就把下面两行取消注释（部分环境仍会被拦）
+  // setTimeout(function(){ startMusic(); }, 300);
+})();
+</script>
+</body>
+</html>
