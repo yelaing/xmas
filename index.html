@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
@@ -11,10 +11,10 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8E%84%3C/text%3E%3C/svg%3E" />
 <meta name="description" content="一棵会旋转的 3D 粒子圣诞树，送给正在看这条消息的你。" />
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Merry Christmas" />
+<meta property="og:title" content="Merry Christmas · 2026" />
 <meta property="og:description" content="一棵会旋转的 3D 粒子圣诞树，送给正在看这条消息的你。" />
 <meta property="og:url" content="https://yelaing.github.io/xmas/" />
-<meta property="og:image" content="https://yelaing.github.io/xmas/og.png" />
+<meta property="og:image" content="https://yelaing.github.io/xmas/og-2026.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="canonical" href="https://yelaing.github.io/xmas/" />
 <style>
@@ -87,6 +87,17 @@
     color:rgba(200,222,255,.42);
     animation:fadein 1.6s ease-out .55s forwards;
   }
+  #nameLine{
+    margin-top:.55em;
+    font-family:"Kaiti SC","STKaiti","KaiTi","Songti SC","STSong",Georgia,serif;
+    font-size:14px;
+    font-size:max(12px, calc(var(--u, 1px) * 20));
+    letter-spacing:.3em;
+    color:rgba(255,238,246,.9);
+    text-shadow:0 0 16px rgba(255,182,220,.42), 0 0 46px rgba(255,150,205,.22);
+    animation:fadein 1.9s ease-out .85s forwards;
+  }
+  #nameLine:empty{display:none}
   @keyframes glow{
     0%,100%{text-shadow:0 0 14px rgba(186,224,255,.38),0 0 52px rgba(120,180,255,.20)}
     50%{text-shadow:0 0 22px rgba(214,240,255,.72),0 0 86px rgba(140,200,255,.38)}
@@ -123,6 +134,7 @@
     #ttl{font-size:20px;font-size:clamp(16px, 4.6vw, 28px);white-space:normal;letter-spacing:0}
     #sub{font-size:12px;font-size:clamp(11px, 3.2vw, 15px);letter-spacing:.1em}
     #sign{font-size:10px;font-size:clamp(9px, 2.6vw, 12px);margin-top:1em;letter-spacing:.18em}
+    #nameLine{font-size:14px;font-size:clamp(13px, 3.8vw, 18px);letter-spacing:.3em;padding-left:.3em}
   }
   @media (prefers-reduced-motion: reduce){
     #ttl,#sub,#sign{animation:none}
@@ -140,7 +152,8 @@
     <div id="hud">
       <h1 id="ttl">Merry Christmas</h1>
       <p id="sub">愿为你亮着的灯，一颗都不落</p>
-      <p id="sign">2025 · 圣诞快乐</p>
+      <p id="sign">2026 · 圣诞快乐</p>
+      <p id="nameLine"></p>
     </div>
   </div>
 </div>
@@ -159,7 +172,8 @@
   var CONFIG = {
     title:    'Merry Christmas',
     subtitle: '愿为你亮着的灯，一颗都不落',
-    signer:   '2025 · 圣诞快乐'
+    signer:   '2026 · 圣诞快乐',
+    beloved:  '诗颖'
   };
 
   /* =========================================================
@@ -451,6 +465,7 @@
     document.getElementById('ttl').textContent = CONFIG.title;
     document.getElementById('sub').textContent = CONFIG.subtitle;
     document.getElementById('sign').textContent = CONFIG.signer;
+    document.getElementById('nameLine').textContent = CONFIG.beloved || '';
     document.title = CONFIG.title;
   }
   applyConfig();

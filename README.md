@@ -36,7 +36,8 @@ https://yelaing.github.io/xmas/
 var CONFIG = {
   title:    'Merry Christmas',
   subtitle: '愿为你亮着的灯，一颗都不落',
-  signer:   '2025 · 圣诞快乐'
+  signer:   '2026 · 圣诞快乐',
+  beloved:  '诗颖'          // 时间下面单独一行（金色柔光），留空则不显示
 };
 ```
 
